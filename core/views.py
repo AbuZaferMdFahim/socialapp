@@ -12,6 +12,37 @@ from .models import Profile
 def index(request):
     return render(request,'index.html')
 
+@login_required(login_url='signin')
+def settings(request):
+    user_Profile = Profile.objects.get(user=request.user)
+
+    if request.method=='POST':
+
+        if request.FILES.get('image')==None:
+            image = user_Profile.profileimg
+            bio = request.POST['bio']
+            location = request.POST['location']
+
+            user_Profile.profileimg = image
+            user_Profile.bio = bio
+            user_Profile.location = location
+            user_Profile.save()
+        if request.FILES.get('image') != None:
+            image = request.FILES.get('image')
+            bio = request.POST['bio']
+            location = request.POST['location']
+
+            user_Profile.profileimg = image
+            user_Profile.bio = bio
+            user_Profile.location = location
+            user_Profile.save()
+
+        return redirect('settings')
+
+    return render(request, 'setting.html',{'user_profile': user_Profile})
+
+
+#authentication view start
 def signup(request):
     if request.method =='POST':
         username = request.POST['username']
@@ -29,11 +60,16 @@ def signup(request):
                 user = User.objects.create_user(username=username, email=email, password=password1)
                 user.save()
 
+                #log user in and redirect to setting page
+                user_login = auth.authenticate(username = username, password = password1)
+                auth.login(request,user_login)
+
+
                 #create a profile object for the new user
                 user_model = User.objects.get(username=username)
                 new_profile = Profile.objects.create(user = user_model, id_user = user_model.id)
                 new_profile.save()
-                return redirect('signup')
+                return redirect('settings')
         else:
             messages.info(request,'Password Not Matching') 
             return redirect('signup')
@@ -61,3 +97,4 @@ def signin(request):
 def logout(request):
     auth.logout(request)
     return redirect ('signin')
+#authentication view End
