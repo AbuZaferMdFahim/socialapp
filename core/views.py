@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_required
 from itertools import chain
 from core.models import Profile,Post,LikePost,FollowersCount
 from django.urls import reverse
+import random
 
 # Create your views here.
 
@@ -28,8 +29,32 @@ def index(request):
         feed.append(feed_lists)
     feed_list = list(chain(*feed))
 
-    posts = Post.objects.all()
-    return render(request,'index.html',{'user_profile': user_profile,'posts':feed_list})
+    #user suggetion starts
+    all_users = User.objects.all()
+    user_following_all = []
+
+    for user in user_following:
+        user_list = User.objects.get(username=user.user)
+        user_following_all.append(user_list)
+    
+    new_sug_list = [x for x in list(all_users) if (x not in list(user_following_all)) ]
+    current_user = User.objects.filter(username=request.user.username)
+    final_sug_list = [x for x in list(new_sug_list) if (x not in list(current_user))]
+    random.shuffle(final_sug_list)
+
+    username_profile = []
+    username_profile_list= []
+
+    for us in final_sug_list:
+        username_profile.append(us.id)
+    
+    for ids in username_profile:
+        profile_lists = Profile.objects.filter(id_user=ids)
+        username_profile_list.append(profile_lists)
+    
+    suggetions_username_profile_lists = list(chain(*username_profile_list))
+
+    return render(request,'index.html',{'user_profile': user_profile,'posts':feed_list, 'suggetions_username_profile_lists':suggetions_username_profile_lists[:4]})
 
 @login_required(login_url='signin')
 def settings(request):
@@ -142,6 +167,26 @@ def follow(request):
             return redirect(reverse('profile', args=[user]))
     else:
         return redirect('/')
+
+@login_required(login_url='signin')
+def search(request):
+    user_objects = User.objects.get(username=request.user.username)
+    user_profile = Profile.objects.get(user=user_objects)
+    if request.method=='POST':
+        username = request.POST['username']
+        username_objects = User.objects.filter(username__icontains=username)
+
+        username_profile = []
+        username_profile_list=[]
+
+        username_profile.append(user_objects.id)
+
+        for user in username_objects:
+            profile_list = Profile.objects.filter(user=user)
+            username_profile_list.extend(profile_list)
+
+    return render(request, 'search.html', {'user_profile': user_profile, 'username_profile_list': username_profile_list})
+
 
 #authentication view start
 def signup(request):
